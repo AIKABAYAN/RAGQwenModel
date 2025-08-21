@@ -1,0 +1,27 @@
+1. Setting Qwen3 Model to Ready
+
+Install & run Qwen3 locally (Docker or direct Python).
+
+Ensure GPU/CPU inference environment works.
+
+Validate with simple chat API call.
+
+Tech: transformers or Qwen’s official inference server.
+
+2. Test Qwen3 Model with Prompt
+
+Run a few manual prompts (no RAG yet).
+
+Example test prompt:
+
+“You are Virgo AI, internal assistant for Padepokan Tujuh Sembilan. Tell me what you can do.”
+
+Validate response style (structured, JSON mode if needed).
+
+Adjust system prompt for Virgo’s role.
+
+3. Simple Embedding / Insert Sample Model for RAG
+
+Enable pgvector extension in PostgreSQL 17.
+
+Create sample table for embeddings:
