@@ -25,3 +25,62 @@ Adjust system prompt for Virgo’s role.
 Enable pgvector extension in PostgreSQL 17.
 
 Create sample table for embeddings:
+
+
+curl http://localhost:11434/api/generate -d '{
+  "model": "qwen2.5:7b-instruct",
+  "prompt": "Hello Virgo, introduce yourself as our AI assistant."
+}'
+
+
+
+autobot_dataset_talent_profile_education, autobot_dataset_talent_profile_project_experiences,autobot_dataset_talent_profile_project_experiences_delta,autobot_dataset_talent_profile_project_portfolio,autobot_dataset_talent_profile_role_tech,autobot_dataset_talent_profile_role_tech_delta,autobot_dataset_talent_timesheet,autobot_dataset_talent_timesheet_delta from @data/initdata.sql transfom into init.py that can be used in our RAG
+use .env for the database rag, use @virgo_rag_gui_final.py fo testing RAG from  @data/initdata.sql  using 3MODEL_CHAT=qwen3:0.6b and MODEL_EMB=qwen3:4b-instruct, import all data
+
+
+4. Modify RAG Logic
+
+  Update the process_query() method in
+  virgo_rag_gui_final.py to query the imported tables
+  instead of virgo_talent. For example:
+   1 # Inside process_query(), replace the search 
+     query with:
+   2 with self.engine.connect() as conn:
+   3     result = conn.execute(        text(""" 
+     SELECT full_name, role, ready_technology FROM
+     autobot_dataset_talent_profile_role_tech 
+     ORDER BY embedding <-> CAST(:embedding AS 
+     vector(2560)) LIMIT 3;        """), {
+     "embedding": query_emb}
+   4     )    matches = result.fetchall()
+   5 ```*Note: Ensure embeddings are precomputed
+     and stored in the tables for similarity
+     search.*
+   6 
+  5. Run the Application
+
+  Start the GUI application:
+
+   1 python virgo_rag_gui_final.py
+   2 ```### Summary of Changes
+   3 
+   - Environment: Configured .env for qwen3:0.6b (chat)
+     and qwen3:4b-instruct (embeddings).
+   - Database: Imported data from initdata.sql into
+     talent_profiles.
+   - Schema: Modified code to query existing tables
+     (autobot_dataset_talent_profile_*) instead of
+     creating virgo_talent.
+   - Embeddings: Assumed precomputed embeddings exist in
+     the tables for RAG functionality.- Execution:
+     Launched the GUI to interact with the RAG system
+     using the imported talent data.
+
+
+     i wanna make RAG using qwen3:0.6b, and qwen3:4b-instruct, from data @data/initdata.sql with database config @.env sample code @virgo_rag_gui_final.py    
+
+
+
+
+
+     Father, Husband, (IT, Tech, Photography, Videography, Gaming, blockout Drakor, Anime) Enthusiast, Team Builder, Mentor
