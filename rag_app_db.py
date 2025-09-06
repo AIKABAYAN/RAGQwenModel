@@ -17,6 +17,9 @@ RAG_TOP_K = int(os.getenv("RAG_TOP_K", 10))
 RAG_CACHE_SIZE = int(os.getenv("RAG_CACHE_SIZE", 1000))
 RAG_DEFAULT_DIMENSION = int(os.getenv("RAG_DEFAULT_DIMENSION", 128))
 
+# Chat memory configuration
+CHAT_MEMORY_SIZE = int(os.getenv("CHAT_MEMORY_SIZE", 10))  # Number of message pairs to remember
+
 
 class IncrementalRAG:
     def __init__(self, embedding_model: str = None, chat_model: str = None, ollama_host: str = None):
@@ -33,7 +36,7 @@ class IncrementalRAG:
         self.embedding_model = embedding_model or os.getenv("MODEL_EMB", "qwen3:4b-instruct")
         self.chat_model = chat_model or os.getenv("MODEL_CHAT", "qwen3:latest")
         self.ollama_host = ollama_host or os.getenv("OLLAMA_HOST", "http://localhost:11434")
-        print(" IncrementalRAG init using {self.embedding_model}") 
+        print(" IncrementalRAG init using {self.embedding_model}")
         # Initialize FAISS index for vector storage
         # Using L2 distance for similarity search
         self.dimension = RAG_DEFAULT_DIMENSION  # Default dimension, will be updated after first embedding
@@ -42,11 +45,54 @@ class IncrementalRAG:
         # Initialize embedding cache
         self.embedding_cache = {}
         
+        # Initialize chat memory
+        self.chat_history = []
+        
         # Initialize database
         init_db()
         
         # Load existing documents and embeddings from database
         self._load_from_db()
+    
+    def add_to_chat_history(self, user_message: str, bot_response: str):
+        """
+        Add a message pair to the chat history.
+        
+        Args:
+            user_message: The user's message
+            bot_response: The bot's response
+        """
+        # Add the new message pair to history
+        self.chat_history.append({
+            "user": user_message,
+            "bot": bot_response
+        })
+        
+        # Limit the history size to CHAT_MEMORY_SIZE
+        if len(self.chat_history) > CHAT_MEMORY_SIZE:
+            self.chat_history = self.chat_history[-CHAT_MEMORY_SIZE:]
+    
+    def get_chat_history_context(self) -> str:
+        """
+        Get the chat history as a formatted context string.
+        
+        Returns:
+            Formatted chat history context
+        """
+        if not self.chat_history:
+            return ""
+            
+        context = "\n\nPrevious conversation context:\n"
+        for i, message_pair in enumerate(self.chat_history):
+            context += f"Turn {i+1}:\n"
+            context += f"User: {message_pair['user']}\n"
+            context += f"Bot: {message_pair['bot']}\n"
+        
+        return context
+    
+    def clear_chat_history(self):
+        """Clear the chat history."""
+        self.chat_history = []
     
     def _load_from_db(self):
         """Load documents and embeddings from the database."""
@@ -185,7 +231,7 @@ class IncrementalRAG:
     
     def chat(self, query: str, use_rag: bool = True) -> str:
         """
-        Chat with the model, optionally using RAG context.
+        Chat with the model, optionally using RAG context and chat memory.
         
         Args:
             query: User query
@@ -205,9 +251,17 @@ class IncrementalRAG:
                 for doc, similarity in similar_docs:
                     context += f"- {doc['content']}\n"
         
-        # Prepare the prompt
-        if context:
-            prompt = f"Answer the query using the provided context.\n\nQuery: {query}\n{context}\n\nAnswer:"
+        # Get chat history context
+        history_context = self.get_chat_history_context()
+        
+        # Prepare the prompt with both RAG context and chat history
+        if context or history_context:
+            prompt = f"Answer the query using the provided context.\n\nQuery: {query}"
+            if context:
+                prompt += context
+            if history_context:
+                prompt += history_context
+            prompt += "\n\nAnswer:"
         else:
             prompt = query
         
@@ -264,6 +318,8 @@ def main():
                 print("  search <query>    - Search for similar documents")
                 print("  count             - Show document count")
                 print("  list              - List all documents")
+                print("  history           - Show chat history")
+                print("  forget            - Clear chat history")
                 print("  help              - Show this help")
                 print("  quit              - Exit the program")
                 continue
@@ -346,6 +402,20 @@ def main():
                 else:
                     print("No documents")
                 print(f"[Response time: {response_time:.2f} seconds]")
+                continue
+                
+            if user_input.lower() == "history":
+                history_context = rag.get_chat_history_context()
+                if history_context:
+                    print("Chat History:")
+                    print(history_context)
+                else:
+                    print("No chat history available.")
+                continue
+                
+            if user_input.lower() == "forget":
+                rag.clear_chat_history()
+                print("Chat history cleared.")
                 continue
                 
             print("Unknown command. Type 'help' for available commands.")

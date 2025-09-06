@@ -13,6 +13,7 @@ def main():
     print("=== Advanced Chatbot with RAG ===")
     print("Type 'quit' to exit")
     print("Type 'help' for available commands")
+    print("Chat memory is enabled - previous conversations provide context")
     print()
     
     # Initialize RAG system
@@ -51,6 +52,8 @@ def main():
                 print("  rag on/off  - Enable/disable RAG mode")
                 print("  add <text>  - Add text to knowledge base")
                 print("  ask <query> - Ask a question using RAG context")
+                print("  history     - Show chat history")
+                print("  forget      - Clear chat history")
                 print()
                 continue
                 
@@ -71,6 +74,20 @@ def main():
                 
             if user_input.lower() == "clear":
                 os.system('cls' if os.name == 'nt' else 'clear')
+                continue
+                
+            if user_input.lower() == "history":
+                history_context = rag.get_chat_history_context()
+                if history_context:
+                    print("Chat History:")
+                    print(history_context)
+                else:
+                    print("No chat history available.")
+                continue
+                
+            if user_input.lower() == "forget":
+                rag.clear_chat_history()
+                print("Chat history cleared.")
                 continue
                 
             if user_input.lower().startswith("rag "):
@@ -122,6 +139,10 @@ def main():
             response = rag.chat(user_input, use_rag=use_rag)
             end_time = time.time()
             response_time = end_time - start_time
+            
+            # Add to chat history
+            rag.add_to_chat_history(user_input, response)
+            
             print(f"Bot: {response}")
             print(f"[Response time: {response_time:.2f} seconds]")
             print()
